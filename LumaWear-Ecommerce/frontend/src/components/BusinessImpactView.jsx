@@ -3,7 +3,6 @@ import { useAuth } from "../context/AuthContext";
 
 export default function BusinessImpactView({ onOpenChurnModal, onOpenCustomer360, onStageCampaign }) {
   const { api } = useAuth();
-  const [isDemoMode, setIsDemoMode] = useState(false);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -22,8 +21,7 @@ export default function BusinessImpactView({ onOpenChurnModal, onOpenCustomer360
     setError("");
 
     try {
-      const url = isDemoMode ? "/churn/business-impact?mode=demo" : "/churn/business-impact";
-      const res = await api(url);
+      const res = await api("/churn/business-impact");
       if (res?.success) {
         setData(res);
       } else {
@@ -39,7 +37,7 @@ export default function BusinessImpactView({ onOpenChurnModal, onOpenCustomer360
 
   useEffect(() => {
     fetchBusinessImpact();
-  }, [isDemoMode]);
+  }, []);
 
   // Filtered & Sorted Customers
   const filteredCustomers = useMemo(() => {
@@ -136,29 +134,6 @@ export default function BusinessImpactView({ onOpenChurnModal, onOpenCustomer360
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Demo Mode Toggle */}
-          <div className="flex items-center gap-1 bg-[#FAF8F5] p-1 rounded-xl border border-stone-300">
-            <button
-              type="button"
-              onClick={() => setIsDemoMode(false)}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-                !isDemoMode ? "bg-stone-900 text-white shadow-sm" : "text-stone-600 hover:text-stone-900"
-              }`}
-            >
-              🟢 Live
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsDemoMode(true)}
-              className={`flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-                isDemoMode ? "bg-purple-900 text-white shadow-sm" : "text-stone-600 hover:text-stone-900"
-              }`}
-            >
-              <span>🧪</span>
-              <span>Demo</span>
-            </button>
-          </div>
-
           <button
             onClick={() => fetchBusinessImpact(true)}
             disabled={loading || isRefreshing}
@@ -169,22 +144,6 @@ export default function BusinessImpactView({ onOpenChurnModal, onOpenCustomer360
           </button>
         </div>
       </div>
-
-      {/* Demo Mode Banner */}
-      {isDemoMode && (
-        <div className="p-4 bg-purple-50 border border-purple-200 rounded-2xl text-purple-900 text-xs flex items-start gap-3 shadow-sm">
-          <span className="text-xl">🧪</span>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-bold uppercase tracking-wider text-[11px]">DEMO SIMULATION MODE</span>
-              <span className="px-2 py-0.5 rounded bg-purple-200 text-purple-950 font-mono text-[10px] font-bold">Model 2b2147fd4057</span>
-            </div>
-            <p className="mt-1 leading-relaxed text-[11px] opacity-90">
-              Demo Mode uses synthetic customer profiles processed through the same production feature contract and active XGBoost model. No real customer data is modified.
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* Analytical Estimate Disclaimer Banner */}
       <div className="bg-amber-50/80 border border-amber-200/80 rounded-2xl p-4 flex items-start gap-3 shadow-sm">

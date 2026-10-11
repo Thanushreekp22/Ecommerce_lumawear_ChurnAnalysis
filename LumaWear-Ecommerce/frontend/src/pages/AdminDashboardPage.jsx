@@ -21,7 +21,6 @@ export default function AdminDashboardPage() {
   const [adminError, setAdminError] = useState("");
 
   // Portfolio Churn Analytics state
-  const [isDemoMode, setIsDemoMode] = useState(false);
   const [portfolioData, setPortfolioData] = useState(null);
   const [portfolioLoading, setPortfolioLoading] = useState(true);
   const [portfolioError, setPortfolioError] = useState("");
@@ -52,8 +51,7 @@ export default function AdminDashboardPage() {
     setPortfolioError("");
 
     try {
-      const url = isDemoMode ? "/churn/portfolio-summary?mode=demo" : "/churn/portfolio-summary";
-      const data = await api(url);
+      const data = await api("/churn/portfolio-summary");
       if (data?.success) {
         setPortfolioData(data);
       } else {
@@ -69,7 +67,10 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     fetchPortfolioData();
-  }, [isDemoMode]);
+    // Auto-refresh live portfolio analytics every 60 seconds
+    const autoRefresh = setInterval(() => fetchPortfolioData(true), 60000);
+    return () => clearInterval(autoRefresh);
+  }, []);
 
   // Quick Churn Risk Lookup Form
   const handleManualSearch = (e) => {
@@ -131,9 +132,9 @@ export default function AdminDashboardPage() {
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-3xl font-semibold tracking-tight text-charcoal">Admin Dashboard</h1>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-sand bg-white px-3 py-1 text-xs font-medium text-charcoal shadow-sm">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-sand bg-white px-3 py-1 text-xs font-medium text-charcoal shadow-sm" title="Scores are computed live from MongoDB records using the active XGBoost model">
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              Live MongoDB + XGBoost (2b2147fd4057)
+              Live data · MongoDB + XGBoost
             </span>
           </div>
           <p className="mt-1 text-sm text-charcoal/70">
@@ -250,24 +251,18 @@ export default function AdminDashboardPage() {
         >
           <span>📈</span>
           <span>Results</span>
-          <span className="bg-emerald-400/20 text-emerald-900 text-[10px] px-1.5 py-0.5 rounded-md font-bold">Phase 14</span>
         </button>
       </div>
 
       {/* ─── TAB 1: CHURN RISK ANALYTICS ────────────────────────────────────── */}
       {activeTab === "analytics" && (
         <>
-          {/* Demo Mode Switch & Disclaimer Banner */}
+          {/* Portfolio Header & Controls */}
           <div className="mt-6 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-sand shadow-sm">
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="text-xl font-semibold text-charcoal">Portfolio Churn Risk Overview</h2>
-                  {isDemoMode && (
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-purple-100 text-purple-900 border border-purple-200">
-                      🧪 Demo Mode
-                    </span>
-                  )}
                 </div>
                 {portfolioData?.generated_at && (
                   <span className="text-xs text-charcoal/60 mt-0.5 block">
@@ -277,29 +272,11 @@ export default function AdminDashboardPage() {
               </div>
 
               <div className="flex items-center gap-3">
-                {/* Mode Toggle */}
-                <div className="flex items-center gap-1 bg-[#FAF8F5] p-1 rounded-xl border border-stone-300">
-                  <button
-                    type="button"
-                    onClick={() => setIsDemoMode(false)}
-                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-                      !isDemoMode ? "bg-stone-900 text-white shadow-sm" : "text-stone-600 hover:text-stone-900"
-                    }`}
-                  >
-                    🟢 Live Data
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsDemoMode(true)}
-                    className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-                      isDemoMode ? "bg-purple-900 text-white shadow-sm" : "text-stone-600 hover:text-stone-900"
-                    }`}
-                  >
-                    <span>🧪</span>
-                    <span>Demo Mode</span>
-                    <span className="bg-white/20 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">4 Tiers</span>
-                  </button>
-                </div>
+                <span className="hidden sm:inline text-[11px] text-charcoal/60" title="Recomputed on demand or every 60 seconds">
+                  {portfolioData?.generated_at
+                    ? `Updated ${new Date(portfolioData.generated_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                    : "Live MongoDB data"}
+                </span>
 
                 <button
                   type="button"
@@ -313,23 +290,6 @@ export default function AdminDashboardPage() {
               </div>
             </div>
 
-            {/* Demo Mode Banner */}
-            {isDemoMode && (
-              <div className="p-4 bg-purple-50 border border-purple-200 rounded-2xl text-purple-900 text-xs flex items-start gap-3 shadow-sm animate-fade-in">
-                <span className="text-xl shrink-0 mt-0.5">🧪</span>
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-bold uppercase tracking-wider text-[11px]">DEMO SIMULATION MODE ACTIVE</span>
-                    <span className="px-2 py-0.5 rounded bg-purple-200 text-purple-950 font-mono text-[10px] font-bold">
-                      Active Model: 2b2147fd4057
-                    </span>
-                  </div>
-                  <p className="mt-1 leading-relaxed text-[11px] opacity-90">
-                    Demo Mode uses synthetic customer profiles processed through the same production feature contract and active XGBoost model. No real customer data is modified.
-                  </p>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Section 1: Portfolio Churn Risk Summary Cards */}
@@ -359,6 +319,12 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
             ) : (
+              <>
+                {portfolioData && summary.total_customers === 0 && (
+                  <div className="mb-4 rounded-xl2 border border-sand bg-white p-5 text-sm text-charcoal/70 shadow-sm">
+                    🌱 No customers found in MongoDB yet — register a customer account to start populating live churn analytics.
+                  </div>
+                )}
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {/* Card 1: Total Customers */}
                 <div className="rounded-xl2 border border-sand bg-white p-5 shadow-sm transition hover:shadow-soft">
@@ -443,6 +409,7 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
               </div>
+              </>
             )}
           </div>
 
