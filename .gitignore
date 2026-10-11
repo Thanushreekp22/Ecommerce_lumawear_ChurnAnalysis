@@ -41,6 +41,9 @@ ChurnProject/artifacts/**/*.joblib
 # Temporary/test-generated data
 ChurnProject/data/test_telecom.csv
 
+# Runtime logs
+*.log
+
 # Local IDE
 .vscode/
 .idea/
