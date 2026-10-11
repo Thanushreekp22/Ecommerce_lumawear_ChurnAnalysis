@@ -48,6 +48,10 @@ ChurnProject/data/test_telecom.csv
 .vscode/
 .idea/
 
+# Real test account credentials (contains passwords — never commit)
+real-accounts.txt
+**/real-accounts.txt
+
 ChurnProject/data/test_ecomm2.csv
 
 LumaWear-Ecommerce/backend/*-backup-*.json
