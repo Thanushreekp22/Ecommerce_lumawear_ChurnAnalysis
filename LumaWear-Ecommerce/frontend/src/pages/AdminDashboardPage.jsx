@@ -2,7 +2,6 @@ import { useEffect, useState, useMemo } from "react";
 import { useAuth } from "../context/AuthContext";
 import ChurnPredictionModal from "../components/ChurnPredictionModal";
 import RetentionAndCampaignsView from "../components/RetentionAndCampaignsView";
-import ModelHealthDashboard from "../components/ModelHealthDashboard";
 import ResultsDashboard from "../components/ResultsDashboard";
 import Customer360Modal from "../components/Customer360Modal";
 import CampaignPreviewModal from "../components/CampaignPreviewModal";
@@ -11,8 +10,8 @@ import RiskCategoryCustomerModal from "../components/RiskCategoryCustomerModal";
 export default function AdminDashboardPage() {
   const { api } = useAuth();
 
-  // Navigation tab state: Exactly 5 tabs
-  // "analytics" | "retention_campaigns" | "store_data" | "model_health" | "results"
+  // Navigation tab state: 4 tabs
+  // "analytics" | "retention_campaigns" | "store_data" | "results"
   const [activeTab, setActiveTab] = useState("analytics");
 
   // Basic admin state
@@ -224,22 +223,7 @@ export default function AdminDashboardPage() {
           <span>Customer Accounts &amp; Activity</span>
         </button>
 
-        {/* Tab 4: 🩺 Model Health */}
-        <button
-          type="button"
-          onClick={() => setActiveTab("model_health")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all shrink-0 ${
-            activeTab === "model_health"
-              ? "bg-charcoal text-white shadow-sm"
-              : "bg-white text-charcoal/70 border border-sand hover:bg-sand/30"
-          }`}
-        >
-          <span>🩺</span>
-          <span>Model Health</span>
-          <span className="bg-purple-400/20 text-purple-900 text-[10px] px-1.5 py-0.5 rounded-md font-bold">MLOps</span>
-        </button>
-
-        {/* Tab 5: 📈 Results */}
+        {/* Tab 4: 📈 Results */}
         <button
           type="button"
           onClick={() => setActiveTab("results")}
@@ -755,14 +739,7 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* ─── TAB 4: MODEL HEALTH (Phase 11 Dashboard) ───────────────────────── */}
-      {activeTab === "model_health" && (
-        <div className="mt-6">
-          <ModelHealthDashboard />
-        </div>
-      )}
-
-      {/* ─── TAB 5: RESULTS (Phase 14 Real Before vs. After Dashboard) ───────── */}
+      {/* ─── TAB 4: RESULTS (Real Before vs. After Dashboard) ────────────────── */}
       {activeTab === "results" && (
         <div className="mt-6">
           <ResultsDashboard
