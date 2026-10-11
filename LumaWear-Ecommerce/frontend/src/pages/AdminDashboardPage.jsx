@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useAuth } from "../context/AuthContext";
 import ChurnPredictionModal from "../components/ChurnPredictionModal";
 import RetentionAndCampaignsView from "../components/RetentionAndCampaignsView";
+import AutomaticRetentionView from "../components/AutomaticRetentionView";
 import ResultsDashboard from "../components/ResultsDashboard";
 import Customer360Modal from "../components/Customer360Modal";
 import CampaignPreviewModal from "../components/CampaignPreviewModal";
@@ -10,8 +11,8 @@ import RiskCategoryCustomerModal from "../components/RiskCategoryCustomerModal";
 export default function AdminDashboardPage() {
   const { api } = useAuth();
 
-  // Navigation tab state: 4 tabs
-  // "analytics" | "retention_campaigns" | "store_data" | "results"
+  // Navigation tab state: 5 tabs
+  // "analytics" | "retention_campaigns" | "automation" | "store_data" | "results"
   const [activeTab, setActiveTab] = useState("analytics");
 
   // Basic admin state
@@ -209,7 +210,21 @@ export default function AdminDashboardPage() {
           <span>Retention &amp; Campaign History</span>
         </button>
 
-        {/* Tab 3: 👥 Customer Accounts & Activity */}
+        {/* Tab 3: 🤖 Automation */}
+        <button
+          type="button"
+          onClick={() => setActiveTab("automation")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all shrink-0 ${
+            activeTab === "automation"
+              ? "bg-charcoal text-white shadow-sm"
+              : "bg-white text-charcoal/70 border border-sand hover:bg-sand/30"
+          }`}
+        >
+          <span>🤖</span>
+          <span>Automation</span>
+        </button>
+
+        {/* Tab 4: 👥 Customer Accounts & Activity */}
         <button
           type="button"
           onClick={() => setActiveTab("store_data")}
@@ -223,7 +238,7 @@ export default function AdminDashboardPage() {
           <span>Customer Accounts &amp; Activity</span>
         </button>
 
-        {/* Tab 4: 📈 Results */}
+        {/* Tab 5: 📈 Results */}
         <button
           type="button"
           onClick={() => setActiveTab("results")}
@@ -607,7 +622,7 @@ export default function AdminDashboardPage() {
         </>
       )}
 
-      {/* ─── TAB 2: RETENTION & CAMPAIGN HISTORY (Phase 14 Merged Component) ── */}
+      {/* ─── TAB 2: RETENTION & CAMPAIGN HISTORY (Merged Component) ──────────── */}
       {activeTab === "retention_campaigns" && (
         <div className="mt-6">
           <RetentionAndCampaignsView
@@ -617,7 +632,14 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* ─── TAB 3: REGISTERED CUSTOMERS & RAW SITE ACTIVITY ─────────────────── */}
+      {/* ─── TAB 3: AUTOMATION (AUTOMATIC RETENTION ENGINE) ─────────────────── */}
+      {activeTab === "automation" && (
+        <div className="mt-6">
+          <AutomaticRetentionView />
+        </div>
+      )}
+
+      {/* ─── TAB 4: REGISTERED CUSTOMERS & RAW SITE ACTIVITY ─────────────────── */}
       {activeTab === "store_data" && (
         <div className="mt-8 grid gap-6 lg:grid-cols-2">
           {/* Users Roster */}
@@ -739,7 +761,7 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* ─── TAB 4: RESULTS (Real Before vs. After Dashboard) ────────────────── */}
+      {/* ─── TAB 5: RESULTS (Real Before vs. After Dashboard) ────────────────── */}
       {activeTab === "results" && (
         <div className="mt-6">
           <ResultsDashboard
