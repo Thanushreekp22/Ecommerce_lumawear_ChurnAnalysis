@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useReducer } from "react";
+import { createContext, useContext, useEffect, useMemo, useReducer, useRef } from "react";
 import { products } from "../data/products";
 import { useAuth } from "./AuthContext";
 
@@ -22,10 +22,15 @@ const defaultInitialState = {
   recentlyViewed: [],
 };
 
+function storeKeyFor(userId) {
+  return userId ? `${STORAGE_KEY}:${userId}` : STORAGE_KEY;
+}
+
 function getInitialStoreState() {
   if (typeof window === "undefined" || !window.localStorage) {
     return defaultInitialState;
   }
+  // Guest cart: legacy shared key only (migrated per-user below).
   const persisted = safeParse(localStorage.getItem(STORAGE_KEY), null);
   if (!persisted) {
     return defaultInitialState;
@@ -38,6 +43,18 @@ function getInitialStoreState() {
     cart: rawCart,
     wishlist: rawWishlist,
     recentlyViewed: rawRecentlyViewed,
+  };
+}
+
+function readUserStore(userId) {
+  if (typeof window === "undefined" || !window.localStorage || !userId) return null;
+  const persisted = safeParse(localStorage.getItem(storeKeyFor(userId)), null);
+  if (!persisted) return null;
+  return {
+    products,
+    cart: Array.isArray(persisted.cart) ? persisted.cart : [],
+    wishlist: Array.isArray(persisted.wishlist) ? persisted.wishlist : [],
+    recentlyViewed: Array.isArray(persisted.recentlyViewed) ? persisted.recentlyViewed : [],
   };
 }
 
@@ -128,7 +145,41 @@ function storeReducer(state, action) {
 
 export function StoreProvider({ children }) {
   const [state, dispatch] = useReducer(storeReducer, undefined, getInitialStoreState);
-  const { logActivity } = useAuth();
+  const { logActivity, user } = useAuth();
+  const userId = user?._id || user?.id || null;
+  const prevUserIdRef = useRef(userId);
+
+  // Switch persisted carts per account: on login load that user's store,
+  // on logout clear to the guest store so the next visitor sees empty badges.
+  useEffect(() => {
+    const prev = prevUserIdRef.current;
+    if (prev === userId) return;
+    prevUserIdRef.current = userId;
+    if (typeof window === "undefined" || !window.localStorage) return;
+    if (userId) {
+      const saved = readUserStore(userId);
+      dispatch({ type: "hydrate", payload: saved || { cart: [], wishlist: [], recentlyViewed: [] } });
+    } else {
+      const guest = safeParse(localStorage.getItem(STORAGE_KEY), null);
+      dispatch({
+        type: "hydrate",
+        payload: {
+          cart: Array.isArray(guest?.cart) ? guest.cart : [],
+          wishlist: Array.isArray(guest?.wishlist) ? guest.wishlist : [],
+          recentlyViewed: Array.isArray(guest?.recentlyViewed) ? guest.recentlyViewed : [],
+        },
+      });
+    }
+  }, [userId]);
+
+  // Immediate clear on logout event (before user state propagates).
+  useEffect(() => {
+    const onLogout = () => dispatch({ type: "hydrate", payload: { cart: [], wishlist: [], recentlyViewed: [] } });
+    if (typeof window !== "undefined") window.addEventListener("lumawear:logout", onLogout);
+    return () => {
+      if (typeof window !== "undefined") window.removeEventListener("lumawear:logout", onLogout);
+    };
+  }, []);
 
   const track = (type, metadata) => {
     void logActivity({
@@ -140,18 +191,22 @@ export function StoreProvider({ children }) {
 
   useEffect(() => {
     try {
+      const key = storeKeyFor(userId);
       localStorage.setItem(
-        STORAGE_KEY,
+        key,
         JSON.stringify({
           cart: state.cart,
           wishlist: state.wishlist,
           recentlyViewed: state.recentlyViewed,
         })
       );
+      // Keep a clean guest store: never leak a logged-in user's cart into it.
+      // On logout the badges hydrate from this guest key (empty).
+      if (!userId) return;
     } catch (err) {
       console.error("Failed to persist store state to localStorage", err);
     }
-  }, [state.cart, state.wishlist, state.recentlyViewed]);
+  }, [state.cart, state.wishlist, state.recentlyViewed, userId]);
 
   const derived = useMemo(() => {
     const cartItems = state.cart

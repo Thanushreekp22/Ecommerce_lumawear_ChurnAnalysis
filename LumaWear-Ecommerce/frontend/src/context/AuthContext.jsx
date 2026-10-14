@@ -85,6 +85,22 @@ export function AuthProvider({ children }) {
     } catch {
       // Clear local state even if the server session is already gone.
     }
+    try {
+      // Reset guest storefront state so logged-out visitors see empty badges.
+      // Per-user carts stay under `lumawear-store:<userId>` for next login.
+      if (typeof window !== "undefined" && window.localStorage) {
+        window.localStorage.setItem("lumawear-store", JSON.stringify({ cart: [], wishlist: [], recentlyViewed: [] }));
+      }
+    } catch {
+      // storage unavailable — badges clear from memory via StoreContext hydrate
+    }
+    // Notify store listeners synchronously before clearing auth (StoreContext
+    // hydrates to the guest store when user becomes null).
+    try {
+      if (typeof window !== "undefined") window.dispatchEvent(new Event("lumawear:logout"));
+    } catch {
+      // ignore
+    }
     clearAuth();
   };
   const api = (path, options) => request(path, options, token);
