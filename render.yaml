@@ -1,0 +1,48 @@
+services:
+  # ── 1. Node/Express backend (LumaWear store + churn orchestration) ──
+  - type: web
+    name: lumawear-backend
+    runtime: node
+    rootDir: LumaWear-Ecommerce/backend
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      - key: MONGODB_URI
+        sync: false # paste your MongoDB Atlas connection string in Render dashboard
+      - key: MONGODB_DB
+        value: lumawear
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: CLIENT_ORIGIN
+        sync: false # your Vercel URL, e.g. https://lumawear-store.vercel.app
+      - key: FRONTEND_URL
+        sync: false # same as CLIENT_ORIGIN
+      - key: CHURN_SERVICE_URL
+        sync: false # set AFTER first deploy, e.g. https://churniq-api.onrender.com
+      - key: AUTOMATIC_RETENTION_ENABLED
+        value: false
+      - key: AUTOMATIC_RETENTION_DRY_RUN
+        value: true
+
+  # ── 2. Python/FastAPI backend (ChurnIQ ML model) ──
+  - type: web
+    name: churniq-api
+    runtime: python
+    rootDir: ChurnProject
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9

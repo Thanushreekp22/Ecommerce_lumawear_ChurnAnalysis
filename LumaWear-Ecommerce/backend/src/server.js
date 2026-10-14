@@ -4066,7 +4066,7 @@ async function start() {
   console.log(`  - SMTP user: ${emailStatus.smtpUser}`);
   console.log(`  - SMTP password: ${emailStatus.smtpPassword}`);
   console.log(`  - Active Dispatch Mode: ${emailStatus.mode.toUpperCase()} (${emailStatus.provider})`);
-  if (process.env.NODE_ENV !== "production") {
+  if (process.env.SKIP_SEED !== "true") {
     await ensureProductsSeeded();
     await ensureAdmin();
   }
@@ -4080,7 +4080,7 @@ async function start() {
     Campaign,
   });
 
-  app.listen(PORT, () => console.log(`LumaWear backend running at http://localhost:${PORT}`));
+  app.listen(PORT, "0.0.0.0", () => console.log(`LumaWear backend running on port ${PORT}`));
 }
 
 if (process.env.NODE_ENV !== "test" && !process.execArgv.includes("--test") && !process.argv.some((a) => a.includes("test"))) {
