@@ -34,12 +34,13 @@ export default function AdminDashboardPage() {
   const [manualUserId, setManualUserId] = useState("");
   const [selectedRiskTierFilter, setSelectedRiskTierFilter] = useState("all");
 
-  // Fetch basic admin data
+  // Fetch basic admin data (customer-only behavioral stream)
   useEffect(() => {
     Promise.all([api("/admin/users"), api("/admin/activity?limit=25")])
       .then(([{ users: accounts }, { activities: recentActivity }]) => {
         setUsers(accounts || []);
-        setActivities(recentActivity || []);
+        const customerOnly = (recentActivity || []).filter((a) => a.user?.role !== "admin" && a.user?.email !== "admin@lumawear.local");
+        setActivities(customerOnly);
       })
       .catch((err) => setAdminError(err.message || "Failed to load admin account roster."));
   }, []);

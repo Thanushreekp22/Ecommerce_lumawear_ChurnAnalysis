@@ -773,9 +773,16 @@ app.get("/api/admin/users", authenticate, requireAdmin, async (_req, res) => {
 });
 app.get("/api/admin/activity", authenticate, requireAdmin, async (req, res) => {
   const limit = Math.min(Number(req.query.limit || 50), 200);
-  const activities = await Activity.find().sort({ createdAt: -1 }).limit(limit).populate("userId", "name email role");
+  // Customer-only behavioral stream: exclude admin page views / logins
+  // (admin@lumawear.local browsing /admin would otherwise flood the feed).
+  const activities = await Activity.find()
+    .populate({ path: "userId", select: "name email role", match: { role: { $ne: "admin" } } })
+    .sort({ createdAt: -1 })
+    .limit(limit * 2)
+    .lean();
+  const customerActs = activities.filter((a) => a.userId).slice(0, limit);
   res.json({
-    activities: activities.map((activity) => ({
+    activities: customerActs.map((activity) => ({
       id: activity._id.toString(),
       type: activity.type,
       route: activity.route,
