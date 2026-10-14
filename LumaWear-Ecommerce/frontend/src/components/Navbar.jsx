@@ -1,6 +1,7 @@
-import { Heart, Menu, Search, ShoppingBag, User, X } from "lucide-react";
+import { Heart, LogOut, Menu, Search, ShoppingBag, User, X } from "lucide-react";
 import { useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import { useStore } from "../context/StoreContext";
 import { APP_NAME } from "../config/env";
 
@@ -16,8 +17,11 @@ const links = [
 export default function Navbar({ onOpenCart }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [profileOpen, setProfileOpen] = useState(false);
   const { cartItems, wishlist } = useStore();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const isAdmin = user?.role === "admin";
 
   const navClass = ({ isActive }) =>
     `focus-ring rounded-md px-2 py-1 text-sm transition hover:text-ink ${isActive ? "text-ink font-medium" : "text-charcoal/75"}`;
@@ -27,6 +31,55 @@ export default function Navbar({ onOpenCart }) {
     navigate(`/shop?search=${encodeURIComponent(query.trim())}`);
     setMobileOpen(false);
   };
+
+  const handleSignOut = async () => {
+    setProfileOpen(false);
+    await signOut();
+    navigate("/", { replace: true });
+  };
+
+  // ── Admin shell: logo + avatar/logout only, no storefront chrome ──
+  if (isAdmin) {
+    return (
+      <header className="sticky top-0 z-50 border-b border-sand/80 bg-cream/95 backdrop-blur">
+        <nav className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 md:px-6">
+          <Link to="/admin" className="focus-ring mr-4 rounded-md text-lg font-semibold tracking-wide">
+            {APP_NAME}
+            <span className="ml-2 rounded-full bg-ink px-2 py-0.5 align-middle text-[11px] font-medium text-cream">Admin</span>
+          </Link>
+          <div className="ml-auto flex items-center gap-1">
+            <div className="relative">
+              <button
+                className="focus-ring flex items-center gap-2 rounded-full p-2 hover:bg-sand/40"
+                onClick={() => setProfileOpen((v) => !v)}
+                aria-label="Admin account menu"
+                title={user?.email || "Admin"}
+              >
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-ink text-sm font-semibold text-cream">
+                  {(user?.name || user?.email || "A").charAt(0).toUpperCase()}
+                </span>
+              </button>
+              {profileOpen && (
+                <>
+                  <button aria-label="Close menu" className="fixed inset-0 z-40 cursor-default" onClick={() => setProfileOpen(false)} />
+                  <div className="absolute right-0 z-50 mt-2 w-60 rounded-xl border border-sand bg-white p-2 shadow-lg">
+                    <p className="truncate px-3 py-2 text-xs font-medium text-charcoal/70">{user?.name || "Store Administrator"}</p>
+                    <p className="truncate px-3 pb-2 text-xs text-charcoal/50">{user?.email}</p>
+                    <button
+                      onClick={handleSignOut}
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-charcoal hover:bg-sand/40"
+                    >
+                      <LogOut size={16} /> Log out
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </nav>
+      </header>
+    );
+  }
 
   return (
     <header className="sticky top-0 z-50 border-b border-sand/80 bg-cream/95 backdrop-blur">

@@ -1254,10 +1254,12 @@ const RETENTION_CLUSTERS = [
     type: "cart_abandonment",
     title: "Cart Abandonment Recovery",
     priority: "High",
-    description: "Customers who added products to their cart recently but never completed an order.",
+    description: "Customers with recent cart activity and no completed purchase afterwards.",
     recommendedAction: "Send an abandoned-cart reminder with a time-limited incentive or free shipping offer.",
     suggestedMessage: "Hi {name}, you still have items waiting in your cart. Consider sending a reminder with free shipping or a limited-time incentive.",
-    predicate: (f, _p) => (Number(f.cart_actions_30d) || 0) > 0 && (Number(f.orders_30d) || 0) === 0,
+    predicate: (f, _p, ctx) =>
+      (Number(f.cart_actions_30d) || 0) > 0 &&
+      ((Number(f.orders_30d) || 0) === 0 || ctx?.freshCartAfterOrder === true),
   },
   {
     type: "inactivity_reengagement",
@@ -1274,19 +1276,23 @@ const RETENTION_CLUSTERS = [
     type: "wishlist_followup",
     title: "Wishlist Follow-up",
     priority: "Medium",
-    description: "Customers with active wishlist saves in the past 30 days but no completed purchases.",
+    description: "Customers with recent wishlist saves and no completed purchase afterwards.",
     recommendedAction: "Send tailored price-drop or low-stock alerts for saved wishlist favorites.",
     suggestedMessage: "Hi {name}, some of your saved items may be worth another look. Consider sending price-drop or low-stock notifications.",
-    predicate: (f, _p) => (Number(f.wishlist_actions_30d) || 0) > 0 && (Number(f.orders_30d) || 0) === 0,
+    predicate: (f, _p, ctx) =>
+      (Number(f.wishlist_actions_30d) || 0) > 0 &&
+      ((Number(f.orders_30d) || 0) === 0 || ctx?.freshWishlistAfterOrder === true),
   },
   {
     type: "product_recommendation",
     title: "Product Recommendations",
     priority: "Medium",
-    description: "Customers who actively browsed multiple catalog items without placing an order.",
+    description: "Customers who actively browsed multiple catalog items without a completed purchase afterwards.",
     recommendedAction: "Send personalized product recommendations based on recently viewed catalog items.",
     suggestedMessage: "Hi {name}, discover top items matching your recent browsing history at LumaWear.",
-    predicate: (f, _p) => (Number(f.product_views_30d) || 0) >= 5 && (Number(f.orders_30d) || 0) === 0,
+    predicate: (f, _p, ctx) =>
+      (Number(f.product_views_30d) || 0) >= 5 &&
+      ((Number(f.orders_30d) || 0) === 0 || ctx?.freshViewsAfterOrder === true),
   },
   {
     type: "new_customer_onboarding",
@@ -1441,6 +1447,39 @@ app.get("/api/churn/retention-opportunities", authenticate, requireAdmin, async 
     const predMap = new Map(predictions.map((p) => [String(p.customer_id), p]));
     const featMap = new Map(customerFeaturesList.map((f) => [String(f.user_id), f]));
 
+    // Per-user recency context: did cart/wishlist/view activity happen AFTER
+    // the last successful order? Recent buyers with fresh intent signals should
+    // still surface in cart/wishlist/browse strategies instead of being hidden
+    // by the `orders_30d === 0` guard.
+    const intentContextByUser = new Map();
+    for (const [uid, acts] of activitiesByUser.entries()) {
+      const orders = ordersByUser.get(uid) || [];
+      const successful = orders
+        .filter((o) => ["confirmed", "completed", "pending"].includes(o?.status))
+        .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+      const lastOrderTime = successful.length ? new Date(successful[successful.length - 1].createdAt).getTime() : null;
+      if (lastOrderTime === null || Number.isNaN(lastOrderTime)) {
+        intentContextByUser.set(uid, { freshCartAfterOrder: false, freshWishlistAfterOrder: false, freshViewsAfterOrder: false });
+        continue;
+      }
+      const cartTypes = new Set(["cart_add", "cart_update", "cart_remove", "cart_clear"]);
+      let freshCart = false;
+      let freshWish = false;
+      let freshView = false;
+      for (const a of acts) {
+        const t = new Date(a.createdAt).getTime();
+        if (Number.isNaN(t) || t <= lastOrderTime) continue;
+        if (cartTypes.has(a.type)) freshCart = true;
+        else if (a.type === "wishlist_toggle") freshWish = true;
+        else if (a.type === "product_viewed") freshView = true;
+      }
+      intentContextByUser.set(uid, {
+        freshCartAfterOrder: freshCart,
+        freshWishlistAfterOrder: freshWish,
+        freshViewsAfterOrder: freshView,
+      });
+    }
+
     // Map customers into retention clusters
     const clusterResults = RETENTION_CLUSTERS.map((cluster) => {
       const clusterCustomers = [];
@@ -1450,8 +1489,13 @@ app.get("/api/churn/retention-opportunities", authenticate, requireAdmin, async 
         const feat = featMap.get(uid);
         const pred = predMap.get(uid);
         if (!feat || !pred) continue;
+        const intentCtx = intentContextByUser.get(uid) || {
+          freshCartAfterOrder: false,
+          freshWishlistAfterOrder: false,
+          freshViewsAfterOrder: false,
+        };
 
-        if (cluster.predicate(feat, pred)) {
+        if (cluster.predicate(feat, pred, intentCtx)) {
           const topDriver = pred.top_shap_features?.[0] || null;
           clusterCustomers.push({
             customerId: uid,

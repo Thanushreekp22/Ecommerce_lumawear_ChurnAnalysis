@@ -12,6 +12,7 @@ export default function Layout() {
   const location = useLocation();
   const { user, logActivity } = useAuth();
   const lastLoggedRouteRef = useRef("");
+  const isAdmin = user?.role === "admin";
 
   useEffect(() => {
     if (!user) return;
@@ -28,13 +29,13 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen bg-cream text-charcoal">
-      <AnnouncementBar />
+      {!isAdmin && <AnnouncementBar />}
       <Navbar onOpenCart={() => setCartOpen(true)} />
       <main>
         <Outlet />
       </main>
-      <Footer />
-      <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
+      {!isAdmin && <Footer />}
+      {!isAdmin && <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />}
     </div>
   );
 }

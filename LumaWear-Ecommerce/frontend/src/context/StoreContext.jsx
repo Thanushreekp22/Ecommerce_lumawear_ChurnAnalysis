@@ -181,13 +181,15 @@ export function StoreProvider({ children }) {
     };
   }, []);
 
-  const track = (type, metadata) => {
+  const trackRef = useRef(null);
+  trackRef.current = (type, metadata) => {
     void logActivity({
       type,
       route: typeof window !== "undefined" ? `${window.location.pathname}${window.location.search}` : "",
       metadata,
     });
   };
+  const track = (type, metadata) => trackRef.current?.(type, metadata);
 
   useEffect(() => {
     try {

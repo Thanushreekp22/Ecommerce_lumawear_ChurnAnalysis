@@ -94,7 +94,7 @@ export function isEligibleForAutomaticRetention(customer, prediction, context = 
  * Selects the optimal retention strategy based on customer behavioral features & prediction.
  * Uses existing 7 retention strategies from retentionEmailTemplates.js without altering ML logic.
  */
-export function selectRetentionStrategy(customer, features = {}, prediction = {}) {
+export function selectRetentionStrategy(customer, features = {}, prediction = {}, context = {}) {
   const churnProbability = Number(prediction.churn_probability) || 0;
   const cartActions30d = Number(features.cart_actions_30d) || 0;
   const orders30d = Number(features.orders_30d) || 0;
@@ -115,8 +115,10 @@ export function selectRetentionStrategy(customer, features = {}, prediction = {}
     };
   }
 
-  // B. Cart Abandonment (Active cart items in 30d with 0 orders)
-  if (cartActions30d > 0 && orders30d === 0) {
+  // B. Cart Abandonment (recent cart activity with no purchase afterwards).
+  // Recent buyers with fresh post-order cart signals still qualify —
+  // the caller may pass `recencyContext: { freshCartAfterOrder: true }`.
+  if (cartActions30d > 0 && (orders30d === 0 || context?.recencyContext?.freshCartAfterOrder === true)) {
     return {
       strategy: "cart_abandonment",
       triggerReason: "cart_items_unpurchased_30d",
@@ -131,16 +133,16 @@ export function selectRetentionStrategy(customer, features = {}, prediction = {}
     };
   }
 
-  // D. Wishlist Follow-up
-  if (wishlistActions30d > 0 && orders30d === 0) {
+  // D. Wishlist Follow-up (recent saves with no purchase afterwards)
+  if (wishlistActions30d > 0 && (orders30d === 0 || context?.recencyContext?.freshWishlistAfterOrder === true)) {
     return {
       strategy: "wishlist_followup",
       triggerReason: "wishlist_items_without_orders",
     };
   }
 
-  // E. Product Recommendation (5+ product views without order)
-  if (productViews30d >= 5 && orders30d === 0) {
+  // E. Product Recommendation (5+ product views without a purchase afterwards)
+  if (productViews30d >= 5 && (orders30d === 0 || context?.recencyContext?.freshViewsAfterOrder === true)) {
     return {
       strategy: "product_recommendation",
       triggerReason: "high_catalog_interest_zero_orders",
