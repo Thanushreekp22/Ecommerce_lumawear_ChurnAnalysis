@@ -4053,11 +4053,30 @@ app.get("/api/churn/predict/:userId", authenticate, requireAdmin, async (req, re
 });
 
 async function start() {
-  await mongoose.connect(MONGODB_URI, {
-    dbName: MONGODB_DB,
-    serverSelectionTimeoutMS: 10000,
-  });
-  console.log(`MongoDB connected: ${mongoose.connection.host}/${mongoose.connection.name}`);
+  // 1. Bind port FIRST so Render detects an open port immediately,
+  // even if MongoDB auth/network is still failing.
+  app.listen(PORT, "0.0.0.0", () => console.log(`LumaWear backend running on port ${PORT}`));
+
+  // 2. Connect to Mongo in background with retries (Render free cold starts + Atlas).
+  const maxAttempts = 8;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await mongoose.connect(MONGODB_URI, {
+        dbName: MONGODB_DB,
+        serverSelectionTimeoutMS: 10000,
+      });
+      console.log(`MongoDB connected: ${mongoose.connection.host}/${mongoose.connection.name}`);
+      break;
+    } catch (err) {
+      console.error(`MongoDB connection attempt ${attempt}/${maxAttempts} failed: ${err.message}`);
+      if (attempt === maxAttempts) {
+        console.error("Giving up on MongoDB. Check MONGODB_URI user/password, Atlas Network Access 0.0.0.0/0, and URL-encoding (@ -> %40).");
+        console.error("Server stays up so /api/health responds; DB routes will 503 until MONGODB_URI is fixed.");
+        return;
+      }
+      await new Promise((r) => setTimeout(r, 5000));
+    }
+  }
   const emailStatus = getEmailConfigurationStatus();
   console.log("Email configuration:");
   console.log(`  - SMTP configured: ${emailStatus.smtpConfigured ? "YES" : "NO"}`);
@@ -4079,8 +4098,6 @@ async function start() {
     AutomaticRetentionLog,
     Campaign,
   });
-
-  app.listen(PORT, "0.0.0.0", () => console.log(`LumaWear backend running on port ${PORT}`));
 }
 
 if (process.env.NODE_ENV !== "test" && !process.execArgv.includes("--test") && !process.argv.some((a) => a.includes("test"))) {
